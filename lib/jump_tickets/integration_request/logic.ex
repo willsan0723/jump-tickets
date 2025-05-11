@@ -180,51 +180,39 @@ defmodule JumpTickets.IntegrationRequest.Logic do
   end
 
   defp execute_step(
-         :create_or_update_notion_ticket,
-         %{
-           intercom_conversation_url: conversation_url,
-           steps: %{ai_analysis: %{result: {:new, ticket_params}}}
-         },
-         opts
-       ) do
+      :create_or_update_notion_ticket,
+      %{intercom_conversation_url: conversation_url,
+        steps: %{ai_analysis: %{result: {_classification, ticket_params}}}},
+      opts
+    ) do
+    clean_url = conversation_url |> String.trim()
+
     ticket = %Ticket{
       title: ticket_params.title,
       summary: ticket_params.summary,
-      intercom_conversations: conversation_url
+      intercom_conversations: clean_url
     }
-
-    result = opts[:notion].create_ticket(ticket)
-
-    result
+  {:ok, created_ticket} = opts[:notion].create_ticket(ticket)
+  {:ok, created_ticket}  
   end
 
   defp execute_step(
-         :create_or_update_notion_ticket,
-         %{
-           intercom_conversation_url: conversation_url,
-           steps: %{ai_analysis: %{result: {:existing, existing_ticket}}}
-         },
-         opts
-       ) do
-    existing_conversations =
-      if is_nil(existing_ticket.intercom_conversations) do
-        ""
-      else
-        existing_ticket.intercom_conversations
-      end
-      |> String.split(",")
-      |> Enum.reject(&(String.length(&1) == 0))
+      :create_or_update_notion_ticket,
+      %{intercom_conversation_url: conversation_url,
+        steps: %{ai_analysis: %{result: {_classification, ticket_params}}}},
+      opts
+    ) do
+    clean_url = String.trim(conversation_url)
 
-    if conversation_url in existing_conversations do
-      {:ok, existing_ticket}
-    else
-      result =
-        opts[:notion].update_ticket(existing_ticket.notion_id, %{
-          intercom_conversations: [conversation_url | existing_conversations] |> Enum.join(",")
-        })
+    ticket = %Ticket{
+      title:                  ticket_params.title,
+      summary:                ticket_params.summary,
+      intercom_conversations: clean_url
+    }
 
-      result
-    end
+    # -> always create a new page, never update the old one - I wasn't able to create new pages after 11 unless I deleted everything and then I could only create one.
+    {:ok, new_page} = opts[:notion].create_ticket(ticket)
+    {:ok, new_page}
   end
 
   defp execute_step(

@@ -60,11 +60,13 @@ defmodule JumpTickets.MixProject do
       {:bandit, "~> 1.5"},
       {:ecto_sqlite3, "~> 0.17"},
       {:notionex, "~> 0.3.1"},
-      {:tesla, "~> 1.4"},
       {:mock, "~> 0.3.9", only: :test},
       {:anthropix, "~> 0.6"},
       {:httpoison, "~> 2.2.1", override: true},
-      {:mox, "~> 1.0", only: :test}
+      {:mox, "~> 1.0", only: :test},
+      {:tesla, "~> 1.4"},
+      {:hackney, "~> 1.20"},
+      {:certifi, "~> 2.11"},
     ]
   end
 

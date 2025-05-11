@@ -76,27 +76,39 @@ defmodule JumpTickets.External.Slack do
   end
 
   @doc """
-  Gets all users from Slack
+  Gets all users from Slack, but treats rate-limits as an empty list.
   """
   def get_all_users do
     case Client.get("/users.list") do
+      # normal success
       {:ok, %Tesla.Env{status: 200, body: %{"ok" => true, "members" => members}}} ->
         users =
-          members
-          |> Enum.map(
-            &%{
-              id: &1["id"],
-              name: &1["real_name"],
-              email: get_in(&1, ["profile", "email"])
+          Enum.map(members, fn u ->
+            %{
+              id: u["id"],
+              name: u["real_name"],
+              email: get_in(u, ["profile", "email"])
             }
-          )
+          end)
 
         {:ok, users}
 
+      # Slack-level ratelimit header
+      {:ok, %Tesla.Env{status: 429}} = resp ->
+        Logger.warn("Slack rate-limited on users.list; skipping invites")
+        {:ok, []}
+
+      # Slack JSON error body “ratelimited”
+      {:ok, %Tesla.Env{status: 200, body: %{"ok" => false, "error" => "ratelimited"}}} ->
+        Logger.warn("Slack JSON ratelimited; skipping invites")
+        {:ok, []}
+
+      # any other Slack API error
       {:ok, %Tesla.Env{status: 200, body: %{"ok" => false, "error" => error}}} ->
         Logger.error("Failed to get Slack users: #{error}")
         {:error, error}
 
+      # HTTP/Tesla error
       {:error, reason} ->
         Logger.error("HTTP error when getting Slack users: #{inspect(reason)}")
         {:error, reason}
@@ -134,8 +146,6 @@ defmodule JumpTickets.External.Slack do
     end
   end
 
-  def post_message("" <> _, text), do: nil
-
   @doc """
   Posts a message to a channel
   """
@@ -158,6 +168,8 @@ defmodule JumpTickets.External.Slack do
         {:error, reason}
     end
   end
+
+  def post_message("", _text), do: nil
 
   @doc """
   Gets a channel by its name
@@ -276,11 +288,6 @@ defmodule JumpTickets.External.Slack.Client do
   use Tesla
 
   plug Tesla.Middleware.BaseUrl, "https://slack.com/api"
-
-  plug Tesla.Middleware.Headers, [
-    {"Content-Type", "application/json; charset=utf-8"}
-  ]
-
   plug Tesla.Middleware.JSON
   plug Tesla.Middleware.BearerAuth, token: get_token()
 

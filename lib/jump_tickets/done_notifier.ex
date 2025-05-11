@@ -6,7 +6,7 @@ defmodule JumpTickets.Ticket.DoneNotifier do
   alias JumpTickets.External.{Slack, Intercom}
 
   @spec notify_ticket_done(%{
-          :intercom_conversations => nil | binary(),
+          :intercom_conversations => nil | binary() | [binary()],
           :slack_channel => nil | binary() | URI.t(),
           :ticket_id => any(),
           optional(any()) => any()
@@ -63,6 +63,12 @@ defmodule JumpTickets.Ticket.DoneNotifier do
   end
 
   defp parse_intercom_conversations(nil), do: []
+
+  defp parse_intercom_conversations(urls) when is_list(urls) do
+    urls
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(&extract_conversation_id/1)
+  end
 
   defp parse_intercom_conversations(conversations) when is_binary(conversations) do
     conversations

@@ -38,9 +38,6 @@ config :jump_tickets,
 
 config :jump_tickets, :intercom, admin_id: System.get_env("INTERCOM_ADMIN_ID")
 
-config :notionex,
-  bearer_token: System.get_env("NOTION_SECRET")
-
 config :jump_tickets, :slack, bot_token: System.get_env("SLACK_BOT_TOKEN")
 
 if config_env() == :prod do
@@ -127,3 +124,6 @@ if config_env() == :prod do
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
+
+{:ok, _} = Application.ensure_all_started(:certifi)
+cacerts = :certifi.cacerts()
